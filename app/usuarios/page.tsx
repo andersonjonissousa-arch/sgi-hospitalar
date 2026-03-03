@@ -104,30 +104,6 @@ export default function GestaoUsuarios() {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800 relative">
-      
-      {/* MENU LATERAL */}
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-xl z-10">
-        <div className="p-6 border-b border-slate-800">
-          <h2 className="text-xl font-bold text-white tracking-wide">SGI Hospitalar</h2>
-          <p className="text-xs text-slate-400 mt-1">Portal de Gestão</p>
-        </div>
-        <nav className="flex-1 p-4 flex flex-col gap-2 text-sm font-medium">
-          <a href="#" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors">
-            <LayoutDashboard size={18} /> Início
-          </a>
-          <a href="#" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors">
-            <FileText size={18} /> Contrato de Gestão
-          </a>
-          <div className="mt-4 mb-1 text-xs font-semibold text-slate-500 uppercase tracking-wider px-3">Configurações</div>
-          <a href="/usuarios" className="flex items-center gap-3 p-3 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/20">
-            <Users size={18} /> Usuários
-          </a>
-          <a href="#" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors">
-            <Settings size={18} /> Permissões
-          </a>
-        </nav>
-      </aside>
-
       {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <header className="bg-white p-6 border-b border-slate-200 flex justify-between items-center shadow-sm z-0">
