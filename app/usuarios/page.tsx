@@ -12,7 +12,7 @@ export default function GestaoUsuarios() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
-    nome: '', email: '', perfil: 'Usuário', setor: '', telefone: ''
+    id: '', nome: '', email: '', perfil: 'Usuário', setor: '', telefone: '', status: 'Ativo'
   })
 
   // A ponte para a sua planilha da sede
@@ -35,43 +35,72 @@ export default function GestaoUsuarios() {
   }, [])
 
   // Função que Salva (Supabase + Planilha)
-  async function salvarNovoUsuario() {
+  // --- INÍCIO DO NOVO BLOCO LÓGICO ---
+  async function salvarUsuario() {
     if (!formData.nome || !formData.email) return alert('Nome e E-mail são obrigatórios!')
+
+    // --- TRAVA DE SEGURANÇA: E-MAIL ÚNICO ---
+    const isEdicao = formData.id !== ''
     
+    // Procura na tabela se já existe alguém com esse email (ignorando o próprio usuário se ele estiver se editando)
+    const emailJaExiste = usuarios.some(
+      (user) => user.email.toLowerCase() === formData.email.toLowerCase() && user.id !== formData.id
+    )
+
+    if (emailJaExiste) {
+      return alert('Erro: Este e-mail já está cadastrado para outro usuário no sistema!')
+    }
+    // ----------------------------------------
+
     setSaving(true)
-    const idUser = "USR-" + new Date().getTime()
-    const novoUsuario = {
-      id: idUser,
+
+    // Se o formData tiver um ID, é edição. Se não tiver, criamos um ID novo.
+    
+    const dadosUsuario = {
+      id: isEdicao ? formData.id : "USR-" + new Date().getTime(),
       nome: formData.nome,
       email: formData.email,
       perfil: formData.perfil,
       setor: formData.setor,
       telefone: formData.telefone,
-      status: 'Ativo'
+      status: formData.status
     }
 
     try {
-      // 1. Salva no Supabase
-      const { error: supabaseError } = await supabase.from('sys_usuarios').insert([novoUsuario])
-      if (supabaseError) throw new Error(supabaseError.message)
+      if (isEdicao) {
+        // Atualiza no Supabase e na Planilha
+        await supabase.from('sys_usuarios').update(dadosUsuario).eq('id', dadosUsuario.id)
+        await fetch(GOOGLE_WEBHOOK_URL, { method: 'POST', body: JSON.stringify({ acao: 'EDITAR_USUARIO', ...dadosUsuario }) })
+      } else {
+        // Cria no Supabase e na Planilha
+        await supabase.from('sys_usuarios').insert([dadosUsuario])
+        await fetch(GOOGLE_WEBHOOK_URL, { method: 'POST', body: JSON.stringify({ acao: 'NOVO_USUARIO', ...dadosUsuario }) })
+      }
 
-      // 2. Salva na Planilha
-      await fetch(GOOGLE_WEBHOOK_URL, {
-        method: 'POST',
-        body: JSON.stringify({ acao: 'NOVO_USUARIO', ...novoUsuario })
-      })
-
-      // 3. Sucesso: Fecha modal, limpa campos e atualiza a tabela instantaneamente
       setIsModalOpen(false)
-      setFormData({ nome: '', email: '', perfil: 'Usuário', setor: '', telefone: '' })
       carregarUsuarios()
-
     } catch (err: any) {
-      alert('Ocorreu um erro: ' + err.message)
+      alert('Erro: ' + err.message)
     } finally {
       setSaving(false)
     }
   }
+
+  function abrirModalEdicao(user: any) {
+    setFormData(user) // Preenche o formulário com os dados da linha clicada
+    setIsModalOpen(true)
+  }
+
+  async function alternarStatus(user: any) {
+    const novoStatus = user.status === 'Ativo' ? 'Inativo' : 'Ativo'
+    if (!confirm(`Tem certeza que deseja mudar o status para ${novoStatus}?`)) return
+    
+    // Atualiza apenas o status no Supabase e manda o usuário completo para o Google Sheets atualizar
+    await supabase.from('sys_usuarios').update({ status: novoStatus }).eq('id', user.id)
+    await fetch(GOOGLE_WEBHOOK_URL, { method: 'POST', body: JSON.stringify({ acao: 'EDITAR_USUARIO', ...user, status: novoStatus }) })
+    carregarUsuarios()
+  }
+  // --- FIM DO NOVO BLOCO LÓGICO ---
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800 relative">
@@ -150,8 +179,12 @@ export default function GestaoUsuarios() {
                       </span>
                     </td>
                     <td className="p-4 flex justify-center gap-2">
-                      <button className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors" title="Editar"><Edit size={16} /></button>
-                      <button className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-md transition-colors" title="Inativar"><Ban size={16} /></button>
+                      <button onClick={() => abrirModalEdicao(user)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors tooltip" title="Editar">
+                        <Edit size={16} />
+                      </button>
+                      <button onClick={() => alternarStatus(user)} className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-md transition-colors" title={user.status === 'Ativo' ? 'Inativar' : 'Reativar'}>
+                        <Ban size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -171,7 +204,7 @@ export default function GestaoUsuarios() {
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Plus size={20} className="text-blue-600" /> Cadastrar Novo Usuário
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200 p-1 rounded-full transition-colors">
+              <button onClick={() => { setIsModalOpen(false); setFormData({ id: '', nome: '', email: '', perfil: 'Usuário', setor: '', telefone: '', status: 'Ativo' }); }} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200 p-1 rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -220,7 +253,7 @@ export default function GestaoUsuarios() {
               <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors">
                 Cancelar
               </button>
-              <button onClick={salvarNovoUsuario} disabled={saving} className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-md transition-colors disabled:bg-blue-400 flex items-center gap-2">
+              <button onClick={salvarUsuario} disabled={saving} className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-md transition-colors disabled:bg-blue-400 flex items-center gap-2">
                 {saving ? ( <><RefreshCw size={16} className="animate-spin" /> Salvando...</> ) : ( 'Salvar Usuário' )}
               </button>
             </div>
