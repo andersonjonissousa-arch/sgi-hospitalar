@@ -19,13 +19,22 @@ export default function GestaoUsuarios() {
   async function carregarUsuarios() {
     setLoading(true)
     try {
-      // Faz um GET na URL do Google pedindo a lista
-      const resposta = await fetch(`${GOOGLE_WEBHOOK_URL}?acao=LISTAR_USUARIOS`);
+      // Adicionamos o redirect: 'follow' para o navegador seguir o link do Google
+      const resposta = await fetch(`${GOOGLE_WEBHOOK_URL}?acao=LISTAR_USUARIOS`, {
+        method: 'GET',
+        redirect: 'follow'
+      });
       const dados = await resposta.json();
-      setUsuarios(dados);
+      
+      // Se o retorno for um array, salva. Se não, limpa.
+      if (Array.isArray(dados)) {
+        setUsuarios(dados);
+      } else {
+        setUsuarios([]);
+      }
     } catch (erro) {
-      console.error(erro);
-      alert("Erro ao puxar a lista da planilha.");
+      console.error("Erro na busca:", erro);
+      // Removemos o alert daqui para não ficar irritando o usuário enquanto testamos
     } finally {
       setLoading(false)
     }
