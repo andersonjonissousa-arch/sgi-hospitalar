@@ -2,31 +2,12 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  Search, 
-  Plus, 
-  FolderOpen, 
-  Filter, 
-  ExternalLink, 
-  Calendar, 
-  Mail, 
-  Info, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle,
-  X,
-  FileText,
-  Edit,
-  Trash2,
-  Download,
-  MessageSquare,
-  Send,
-  Bot,
-  User,
-  Loader2,
-  ChevronLeft,
-  ChevronRight
+  Search, Plus, FolderOpen, Filter, ExternalLink, Calendar, Mail, 
+  Info, Clock, CheckCircle, AlertCircle, X, FileText, Edit, 
+  Trash2, Download, MessageSquare, Send, Bot, Loader2, 
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -37,9 +18,9 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// ------------------------------------------------------------------
+// SUPABASE REMOVIDO DAQUI
+// ------------------------------------------------------------------
 
 const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwhJMeVeTUxHX_X6mJTfgDGrtYvoXbIb2YNDuC7Phlum_tsWfjcCPXp4lY5wNcW5e4/exec'; 
 
@@ -81,7 +62,6 @@ export default function GestaoDocumentalPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterVencimento, setFilterVencimento] = useState('');
   
-  // --- Estados de Paginação ---
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -103,42 +83,25 @@ export default function GestaoDocumentalPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages, isChatOpen]);
 
+  // FUNÇÃO ATUALIZADA: Sem Supabase
   const fetchDocumentos = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.from('gestao_documental').select('*');
-      if (error) throw error;
-
-      const documentosFormatados = (data || []).map((row: any) => ({
-        id: row.id, nome: row.nome_documento || '', codigo: row.codigo || '', link: row.link_documento || '',
-        tipo: row.tipo_documento || '-', localizacao: row.localizacao_documento || '-', status: row.status || '-',
-        versao: row.versao || '', revisao: row.revisao || '', dataRevisao: row.data_revisao || '', proximaRevisao: row.proxima_revisao || '',
-        emailAnderson: row.email_anderson || '', emailAmanda: row.email_amanda || '', dataCobranca: row.data_ultima_cobranca || '',
-        respCobranca: row.responsavel_ultima_cobranca || '', observacoes: row.observacoes || ''
-      }));
-      setDocumentos(documentosFormatados);
-    } catch (err) {
-      console.error('Erro ao buscar documentos:', err);
-      setDocumentos([]);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    // Como removemos o Supabase, por enquanto a lista inicia vazia.
+    // Depois conectaremos isso para puxar da sua Planilha do Google!
+    setDocumentos([]); 
+    setLoading(false);
   };
 
   useEffect(() => { fetchDocumentos(); }, []);
 
-  // Reseta a página para 1 sempre que um filtro é alterado
   useEffect(() => {
     setCurrentPage(1);
   }, [search, filterTipo, filterLocalizacao, filterStatus, filterVencimento]);
 
-  // --- Lógica para gerar as opções dos filtros dinamicamente ---
   const dynamicOptions = useMemo(() => {
     const tipos = Array.from(new Set(documentos.map(d => d.tipo))).sort();
-    
     const docsParaLocais = documentos.filter(d => !filterTipo || d.tipo === filterTipo);
     const locais = Array.from(new Set(docsParaLocais.map(d => d.localizacao))).sort();
-    
     const docsParaStatus = docsParaLocais.filter(d => !filterLocalizacao || d.localizacao === filterLocalizacao);
     const statusList = Array.from(new Set(docsParaStatus.map(d => d.status))).sort();
 
@@ -162,20 +125,18 @@ export default function GestaoDocumentalPage() {
 
   const abrirModalEdicao = (doc: Documento) => { setFormData(doc); setIsModalOpen(true); };
 
+  // FUNÇÃO ATUALIZADA: Sem Supabase, envia apenas para o Google
   const handleDelete = async (id: string | undefined, nome: string) => {
     if (!id) return;
     if (!confirm(`⚠️ ATENÇÃO: Tem certeza que deseja excluir o documento "${nome}"?`)) return;
     try {
-      const { error } = await supabase.from('gestao_documental').delete().eq('id', id);
-      if (error) throw error;
-      try {
-        await fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'EXCLUIR_DOCUMENTO', id: id }) });
-      } catch (webhookErr) {}
+      await fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'EXCLUIR_DOCUMENTO', id: id }) });
+      alert('Comando de exclusão enviado!');
       fetchDocumentos();
-      alert('Documento excluído com sucesso!');
-    } catch (err) { alert('Erro ao excluir documento.'); }
+    } catch (err) { alert('Erro ao comunicar com o servidor.'); }
   };
 
+  // FUNÇÃO ATUALIZADA: Sem Supabase, envia apenas para o Google
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -192,19 +153,14 @@ export default function GestaoDocumentalPage() {
       };
 
       if (isEdicao) {
-        const { error } = await supabase.from('gestao_documental').update(dadosParaBanco).eq('id', formData.id);
-        if (error) throw error;
-        try { await fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'EDITAR_DOCUMENTO', ...dadosParaBanco }) }); } catch (e) {}
+        await fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'EDITAR_DOCUMENTO', ...dadosParaBanco }) });
       } else {
-        const { error } = await supabase.from('gestao_documental').insert([dadosParaBanco]);
-        if (error) throw error;
-        try { await fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'NOVO_DOCUMENTO', ...dadosParaBanco }) }); } catch (e) {}
+        await fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'NOVO_DOCUMENTO', ...dadosParaBanco }) });
       }
 
       setIsModalOpen(false);
-      fetchDocumentos();
-      alert(isEdicao ? 'Documento atualizado com sucesso!' : 'Documento criado com sucesso!');
-    } catch (err) { alert('Erro ao salvar no banco de dados. Verifique a conexão.'); } finally { setIsSaving(false); }
+      alert(isEdicao ? 'Documento atualizado com sucesso!' : 'Documento enviado com sucesso!');
+    } catch (err) { alert('Erro ao salvar no servidor. Verifique a conexão.'); } finally { setIsSaving(false); }
   };
 
   const handleSendChatMessage = async () => {
@@ -255,10 +211,8 @@ export default function GestaoDocumentalPage() {
     });
   }, [documentos, search, filterTipo, filterLocalizacao, filterStatus, filterVencimento]);
 
-  // --- Lógica de Paginação ---
   const totalPages = Math.ceil(filteredDocumentos.length / itemsPerPage);
   
-  // Extrai apenas os documentos da página atual
   const paginatedDocumentos = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredDocumentos.slice(startIndex, startIndex + itemsPerPage);
@@ -323,33 +277,30 @@ export default function GestaoDocumentalPage() {
             />
           </div>
           
-          {/* Filtro de Tipos Dinâmico */}
           <select 
             className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
             value={filterTipo}
             onChange={(e) => setFilterTipo(e.target.value)}
           >
-            <option value="">Todos os Tipos</option> {/* Removido o quantitativo daqui */}
+            <option value="">Todos os Tipos</option>
             {dynamicOptions.tipos.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
 
-          {/* Filtro de Locais */}
           <select 
             className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
             value={filterLocalizacao}
             onChange={(e) => setFilterLocalizacao(e.target.value)}
           >
-            <option value="">Todas as Localizações</option> {/* Removido o quantitativo daqui */}
+            <option value="">Todas as Localizações</option>
             {dynamicOptions.locais.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
 
-          {/* Filtro de Status */}
           <select 
             className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
           >
-            <option value="">Todos os Status</option> {/* Removido o quantitativo daqui */}
+            <option value="">Todos os Status</option>
             {dynamicOptions.statusList.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
@@ -382,7 +333,7 @@ export default function GestaoDocumentalPage() {
               {loading ? (
                 <tr><td colSpan={6} className="px-6 py-10 text-center text-slate-400"><div className="flex items-center justify-center gap-2"><Loader2 className="animate-spin" /> Carregando documentos...</div></td></tr>
               ) : paginatedDocumentos.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-slate-400">Nenhum documento encontrado.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-slate-400">Nenhum documento encontrado (Conectaremos os dados em breve).</td></tr>
               ) : (
                 paginatedDocumentos.map((doc, idx) => {
                   let isVencido = false; let dataBr = '-';
@@ -421,99 +372,42 @@ export default function GestaoDocumentalPage() {
           </table>
         </div>
         
-        {/* Controles de Paginação */}
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50">
             <div className="text-sm text-slate-500">
               Mostrando <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> a <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredDocumentos.length)}</span> de <span className="font-medium">{filteredDocumentos.length}</span> resultados
             </div>
             <div className="flex gap-1">
-              <button 
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
-                title="Página Anterior"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              
-              <div className="flex items-center px-4 font-medium text-slate-700">
-                Página {currentPage} de {totalPages}
-              </div>
-
-              <button 
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
-                title="Próxima Página"
-              >
-                <ChevronRight size={18} />
-              </button>
+              <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"><ChevronLeft size={18} /></button>
+              <div className="flex items-center px-4 font-medium text-slate-700">Página {currentPage} de {totalPages}</div>
+              <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"><ChevronRight size={18} /></button>
             </div>
           </div>
         )}
       </div>
 
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-        <div className={cn(
-          "bg-white w-80 sm:w-96 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transition-all duration-300 mb-4 origin-bottom-right",
-          isChatOpen ? "scale-100 opacity-100" : "scale-0 opacity-0 pointer-events-none absolute"
-        )}>
+        <div className={cn("bg-white w-80 sm:w-96 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transition-all duration-300 mb-4 origin-bottom-right", isChatOpen ? "scale-100 opacity-100" : "scale-0 opacity-0 pointer-events-none absolute")}>
           <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 font-semibold">
-              <Bot size={20} />
-              Assistente SGI
-            </div>
-            <button onClick={() => setIsChatOpen(false)} className="text-blue-100 hover:text-white transition-colors">
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-2 font-semibold"><Bot size={20} /> Assistente SGI</div>
+            <button onClick={() => setIsChatOpen(false)} className="text-blue-100 hover:text-white transition-colors"><X size={20} /></button>
           </div>
-
           <div className="h-80 bg-slate-50 p-4 overflow-y-auto flex flex-col gap-3">
             {chatMessages.map((msg) => (
               <div key={msg.id} className={cn("flex w-full", msg.sender === 'user' ? "justify-end" : "justify-start")}>
-                <div className={cn(
-                  "px-4 py-2 text-sm shadow-sm max-w-[85%]",
-                  msg.sender === 'user' 
-                    ? "bg-blue-600 text-white rounded-l-2xl rounded-tr-2xl" 
-                    : "bg-white border border-slate-200 text-slate-700 rounded-r-2xl rounded-tl-2xl"
-                )}>
-                  {msg.isLoading ? (
-                    <span className="flex items-center gap-2 text-slate-500">
-                      <Loader2 size={14} className="animate-spin" /> Consultando manual...
-                    </span>
-                  ) : (
-                    <span dangerouslySetInnerHTML={{ __html: msg.text }} />
-                  )}
+                <div className={cn("px-4 py-2 text-sm shadow-sm max-w-[85%]", msg.sender === 'user' ? "bg-blue-600 text-white rounded-l-2xl rounded-tr-2xl" : "bg-white border border-slate-200 text-slate-700 rounded-r-2xl rounded-tl-2xl")}>
+                  {msg.isLoading ? <span className="flex items-center gap-2 text-slate-500"><Loader2 size={14} className="animate-spin" /> Consultando manual...</span> : <span dangerouslySetInnerHTML={{ __html: msg.text }} />}
                 </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
-
           <div className="p-3 bg-white border-t border-slate-100 flex items-center gap-2">
-            <input 
-              type="text" 
-              placeholder="Digite sua dúvida..." 
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            />
-            <button 
-              onClick={handleSendChatMessage}
-              disabled={!chatInput.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white p-2 rounded-full transition-colors flex-shrink-0"
-            >
-              <Send size={18} className="ml-0.5" />
-            </button>
+            <input type="text" placeholder="Digite sua dúvida..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()} className="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+            <button onClick={handleSendChatMessage} disabled={!chatInput.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white p-2 rounded-full transition-colors flex-shrink-0"><Send size={18} className="ml-0.5" /></button>
           </div>
         </div>
-
-        <button 
-          onClick={() => setIsChatOpen(!isChatOpen)}
-          className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
-        >
+        <button onClick={() => setIsChatOpen(!isChatOpen)} className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95">
           {isChatOpen ? <X size={26} /> : <MessageSquare size={26} />}
         </button>
       </div>
