@@ -17,30 +17,19 @@ export default function GestaoUsuarios() {
 
   // --- NOVA FUNÇÃO QUE BUSCA DA PLANILHA ---
   async function carregarUsuarios() {
-    setLoading(true);
-    try {
-      // Usamos uma estratégia de JSONP ou Proxy, mas o Google aceita bem se o link for limpo
-      const url = `${GOOGLE_WEBHOOK_URL}?acao=LISTAR_USUARIOS`;
-      
-      const resposta = await fetch(url, {
-        method: 'GET',
-        mode: 'cors', // Forçamos o CORS
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!resposta.ok) throw new Error('Erro na rede');
-
-      const dados = await resposta.json();
-      setUsuarios(Array.isArray(dados) ? dados : []);
-    } catch (erro) {
-      console.error("Erro na busca:", erro);
-      // Se falhar o fetch direto por CORS, o plano B é usar a planilha via link direto ou API Proxy
-    } finally {
-      setLoading(false);
-    }
+  setLoading(true);
+  try {
+    // Agora chamamos a nossa própria rota interna da Vercel
+    const resposta = await fetch('/api/usuarios');
+    const dados = await resposta.json();
+    
+    setUsuarios(Array.isArray(dados) ? dados : []);
+  } catch (erro) {
+    console.error("Erro na busca:", erro);
+  } finally {
+    setLoading(false);
   }
+}
 
   useEffect(() => {
     carregarUsuarios()

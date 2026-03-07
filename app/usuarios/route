@@ -1,0 +1,13 @@
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  const GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbwhJMeVeTUxHX_X6mJTfgDGrtYvoXbIb2YNDuC7Phlum_tsWfjcCPXp4lY5wNcW5e4/exec?acao=LISTAR_USUARIOS';
+  
+  try {
+    const res = await fetch(GOOGLE_URL, { redirect: 'follow' });
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json({ error: 'Erro no servidor proxy' }, { status: 500 });
+  }
+}
