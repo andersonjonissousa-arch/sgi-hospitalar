@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
 import { Search, Plus, RefreshCw, Edit, Ban, LayoutDashboard, FileText, Users, Settings, X } from 'lucide-react'
 
 export default function GestaoUsuarios() {
@@ -18,15 +17,12 @@ export default function GestaoUsuarios() {
   // A ponte para a sua planilha da sede
   const GOOGLE_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwhJMeVeTUxHX_X6mJTfgDGrtYvoXbIb2YNDuC7Phlum_tsWfjcCPXp4lY5wNcW5e4/exec'
 
-  // Busca os dados do Supabase
+  // Busca os dados (Sem Supabase)
   async function carregarUsuarios() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('sys_usuarios')
-      .select('*')
-      .order('nome', { ascending: true })
-    
-    if (data) setUsuarios(data)
+    // Como removemos o Supabase, por enquanto a lista inicia vazia.
+    // Depois conectaremos isso para puxar da sua Planilha do Google!
+    setUsuarios([])
     setLoading(false)
   }
 
@@ -34,15 +30,12 @@ export default function GestaoUsuarios() {
     carregarUsuarios()
   }, [])
 
-  // Função que Salva (Supabase + Planilha)
-  // --- INÍCIO DO NOVO BLOCO LÓGICO ---
+  // Função que Salva (Apenas na Planilha via Webhook)
   async function salvarUsuario() {
     if (!formData.nome || !formData.email) return alert('Nome e E-mail são obrigatórios!')
 
-    // --- TRAVA DE SEGURANÇA: E-MAIL ÚNICO ---
     const isEdicao = formData.id !== ''
     
-    // Procura na tabela se já existe alguém com esse email (ignorando o próprio usuário se ele estiver se editando)
     const emailJaExiste = usuarios.some(
       (user) => user.email.toLowerCase() === formData.email.toLowerCase() && user.id !== formData.id
     )
@@ -50,12 +43,9 @@ export default function GestaoUsuarios() {
     if (emailJaExiste) {
       return alert('Erro: Este e-mail já está cadastrado para outro usuário no sistema!')
     }
-    // ----------------------------------------
 
     setSaving(true)
 
-    // Se o formData tiver um ID, é edição. Se não tiver, criamos um ID novo.
-    
     const dadosUsuario = {
       id: isEdicao ? formData.id : "USR-" + new Date().getTime(),
       nome: formData.nome,
@@ -68,39 +58,54 @@ export default function GestaoUsuarios() {
 
     try {
       if (isEdicao) {
-        // Atualiza no Supabase e na Planilha
-        await supabase.from('sys_usuarios').update(dadosUsuario).eq('id', dadosUsuario.id)
-        await fetch(GOOGLE_WEBHOOK_URL, { method: 'POST', body: JSON.stringify({ acao: 'EDITAR_USUARIO', ...dadosUsuario }) })
+        await fetch(GOOGLE_WEBHOOK_URL, { 
+          method: 'POST', 
+          mode: 'no-cors', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ acao: 'EDITAR_USUARIO', ...dadosUsuario }) 
+        })
       } else {
-        // Cria no Supabase e na Planilha
-        await supabase.from('sys_usuarios').insert([dadosUsuario])
-        await fetch(GOOGLE_WEBHOOK_URL, { method: 'POST', body: JSON.stringify({ acao: 'NOVO_USUARIO', ...dadosUsuario }) })
+        await fetch(GOOGLE_WEBHOOK_URL, { 
+          method: 'POST', 
+          mode: 'no-cors', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ acao: 'NOVO_USUARIO', ...dadosUsuario }) 
+        })
       }
 
       setIsModalOpen(false)
+      alert(isEdicao ? 'Usuário atualizado com sucesso!' : 'Usuário cadastrado com sucesso!')
       carregarUsuarios()
     } catch (err: any) {
-      alert('Erro: ' + err.message)
+      alert('Erro ao enviar para o servidor: ' + err.message)
     } finally {
       setSaving(false)
     }
   }
 
   function abrirModalEdicao(user: any) {
-    setFormData(user) // Preenche o formulário com os dados da linha clicada
+    setFormData(user) 
     setIsModalOpen(true)
   }
 
+  // Função que Altera Status (Apenas na Planilha via Webhook)
   async function alternarStatus(user: any) {
     const novoStatus = user.status === 'Ativo' ? 'Inativo' : 'Ativo'
     if (!confirm(`Tem certeza que deseja mudar o status para ${novoStatus}?`)) return
     
-    // Atualiza apenas o status no Supabase e manda o usuário completo para o Google Sheets atualizar
-    await supabase.from('sys_usuarios').update({ status: novoStatus }).eq('id', user.id)
-    await fetch(GOOGLE_WEBHOOK_URL, { method: 'POST', body: JSON.stringify({ acao: 'EDITAR_USUARIO', ...user, status: novoStatus }) })
-    carregarUsuarios()
+    try {
+      await fetch(GOOGLE_WEBHOOK_URL, { 
+        method: 'POST', 
+        mode: 'no-cors', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ acao: 'EDITAR_USUARIO', ...user, status: novoStatus }) 
+      })
+      alert(`Comando enviado para alterar status para ${novoStatus}!`)
+      carregarUsuarios()
+    } catch (err) {
+      alert('Erro ao atualizar status no servidor.')
+    }
   }
-  // --- FIM DO NOVO BLOCO LÓGICO ---
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800 relative">
@@ -114,7 +119,6 @@ export default function GestaoUsuarios() {
             <button onClick={carregarUsuarios} className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-all">
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Atualizar
             </button>
-            {/* Botão que abre o Modal */}
             <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 shadow-md transition-all">
               <Plus size={18} /> Novo Usuário
             </button>
@@ -123,7 +127,6 @@ export default function GestaoUsuarios() {
 
         {/* Conteúdo da Tabela */}
         <div className="p-8 flex-1 overflow-auto">
-          {/* Tabela (Omitida pesquisa por brevidade) */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -138,32 +141,40 @@ export default function GestaoUsuarios() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {usuarios.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-4 font-medium text-slate-800">{user.nome}</td>
-                    <td className="p-4 text-slate-600">{user.email}</td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${user.perfil === 'Administrador' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                        {user.perfil}
-                      </span>
-                    </td>
-                    <td className="p-4 text-slate-600">{user.setor}</td>
-                    <td className="p-4 text-slate-600">{user.telefone}</td>
-                    <td className="p-4 text-center">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${user.status === 'Ativo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {user.status}
-                      </span>
-                    </td>
-                    <td className="p-4 flex justify-center gap-2">
-                      <button onClick={() => abrirModalEdicao(user)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors tooltip" title="Editar">
-                        <Edit size={16} />
-                      </button>
-                      <button onClick={() => alternarStatus(user)} className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-md transition-colors" title={user.status === 'Ativo' ? 'Inativar' : 'Reativar'}>
-                        <Ban size={16} />
-                      </button>
+                {usuarios.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-500">
+                      Nenhum usuário encontrado (Conectaremos os dados em breve).
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  usuarios.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-4 font-medium text-slate-800">{user.nome}</td>
+                      <td className="p-4 text-slate-600">{user.email}</td>
+                      <td className="p-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${user.perfil === 'Administrador' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {user.perfil}
+                        </span>
+                      </td>
+                      <td className="p-4 text-slate-600">{user.setor}</td>
+                      <td className="p-4 text-slate-600">{user.telefone}</td>
+                      <td className="p-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${user.status === 'Ativo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {user.status}
+                        </span>
+                      </td>
+                      <td className="p-4 flex justify-center gap-2">
+                        <button onClick={() => abrirModalEdicao(user)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors tooltip" title="Editar">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => alternarStatus(user)} className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-md transition-colors" title={user.status === 'Ativo' ? 'Inativar' : 'Reativar'}>
+                          <Ban size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -175,17 +186,15 @@ export default function GestaoUsuarios() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 transition-all">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
             
-            {/* Cabeçalho do Modal */}
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Plus size={20} className="text-blue-600" /> Cadastrar Novo Usuário
+                <Plus size={20} className="text-blue-600" /> {formData.id ? 'Editar Usuário' : 'Cadastrar Novo Usuário'}
               </h3>
               <button onClick={() => { setIsModalOpen(false); setFormData({ id: '', nome: '', email: '', perfil: 'Usuário', setor: '', telefone: '', status: 'Ativo' }); }} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200 p-1 rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>
 
-            {/* Corpo do Modal (Formulário) */}
             <div className="p-6 flex flex-col gap-4 text-sm">
               <div className="flex flex-col gap-1.5">
                 <label className="font-semibold text-slate-700">Nome Completo</label>
@@ -224,7 +233,6 @@ export default function GestaoUsuarios() {
               </div>
             </div>
 
-            {/* Rodapé do Modal (Botões) */}
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors">
                 Cancelar
