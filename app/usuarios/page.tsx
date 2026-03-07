@@ -13,7 +13,7 @@ export default function GestaoUsuarios() {
   })
 
   // SUA URL OFICIAL DO GOOGLE
-  const GOOGLE_WEBHOOK_URL = 'https://script.google.com/a/macros/isgh.org.br/s/AKfycbwhJMeVeTUxHX_X6mJTfgDGrtYvoXbIb2YNDuC7Phlum_tsWfjcCPXp4lY5wNcW5e4/exec'
+  const GOOGLE_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwhJMeVeTUxHX_X6mJTfgDGrtYvoXbIb2YNDuC7Phlum_tsWfjcCPXp4lY5wNcW5e4/exec'
 
   // --- NOVA FUNÇÃO QUE BUSCA DA PLANILHA ---
   async function carregarUsuarios() {
