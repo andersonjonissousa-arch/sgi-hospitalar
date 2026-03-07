@@ -17,26 +17,28 @@ export default function GestaoUsuarios() {
 
   // --- NOVA FUNÇÃO QUE BUSCA DA PLANILHA ---
   async function carregarUsuarios() {
-    setLoading(true)
+    setLoading(true);
     try {
-      // Adicionamos o redirect: 'follow' para o navegador seguir o link do Google
-      const resposta = await fetch(`${GOOGLE_WEBHOOK_URL}?acao=LISTAR_USUARIOS`, {
-        method: 'GET',
-        redirect: 'follow'
-      });
-      const dados = await resposta.json();
+      // Usamos uma estratégia de JSONP ou Proxy, mas o Google aceita bem se o link for limpo
+      const url = `${GOOGLE_WEBHOOK_URL}?acao=LISTAR_USUARIOS`;
       
-      // Se o retorno for um array, salva. Se não, limpa.
-      if (Array.isArray(dados)) {
-        setUsuarios(dados);
-      } else {
-        setUsuarios([]);
-      }
+      const resposta = await fetch(url, {
+        method: 'GET',
+        mode: 'cors', // Forçamos o CORS
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!resposta.ok) throw new Error('Erro na rede');
+
+      const dados = await resposta.json();
+      setUsuarios(Array.isArray(dados) ? dados : []);
     } catch (erro) {
       console.error("Erro na busca:", erro);
-      // Removemos o alert daqui para não ficar irritando o usuário enquanto testamos
+      // Se falhar o fetch direto por CORS, o plano B é usar a planilha via link direto ou API Proxy
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
