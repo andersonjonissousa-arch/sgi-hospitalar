@@ -1,16 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// IMPORT DO SUPABASE REMOVIDO!
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
 import { LayoutDashboard, Loader2, RotateCcw, Activity } from "lucide-react";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// CONFIGURAÇÕES DO SUPABASE REMOVIDAS!
 
 export default function PainelBIPage() {
   const [documentos, setDocumentos] = useState<any[]>([]);
@@ -20,13 +18,19 @@ export default function PainelBIPage() {
   const [selLocal, setSelLocal] = useState('');
   const [selStatus, setSelStatus] = useState('');
 
+  // FUNÇÃO ATUALIZADA: Sem Supabase
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data } = await supabase.from('gestao_documental').select('*');
-        setDocumentos(data || []);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
+        setLoading(true);
+        // Como removemos o Supabase, iniciamos o painel vazio por enquanto.
+        // Logo conectaremos isso ao Google Apps Script!
+        setDocumentos([]); 
+      } catch (e) { 
+        console.error(e); 
+      } finally { 
+        setLoading(false); 
+      }
     };
     fetchData();
   }, []);
@@ -128,7 +132,7 @@ export default function PainelBIPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* 2. Status (NOVO GRÁFICO) */}
+        {/* 2. Status */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-[380px]">
           <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Activity size={18} className="text-amber-500"/> Volume por Status</h3>
           <ResponsiveContainer width="100%" height="100%">
